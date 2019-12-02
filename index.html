@@ -1,0 +1,185 @@
+<html>
+    
+    <head>
+        <meta charset="utf-8">
+        <style>
+            html {
+                font-family: Helvetica Neue,Helvetica,Arial,sans-serif; 
+            }
+        
+            .header-div {
+                position: absolute;
+                margin: auto;
+                top: 0;
+                right: 0;
+                left: 0;
+                display: flex;
+                height: 150px;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-color: #000;
+                color: #FFF;
+            }
+            
+            .footer-div {
+                position: absolute;
+                margin: auto;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                display: flex;
+                height: 150px;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-color: #000;
+                color: #FFF;
+            }
+        
+            .center-div {
+              position: absolute;
+              margin: auto;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              top: 0;
+              right: 0;
+              bottom: 0;
+              left: 0;
+              height: 250px;
+              color: #000;
+              font-size: 25pt;
+              border-radius: 3px;
+            }
+            
+            .center-div input, .center-div button {
+                font-size: 20pt;
+            }
+        </style>
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+        <script src="./contracts.js"></script>
+        <script>
+            
+            let usdc, tusd, pax, rsv, manager;
+            
+            function unlockTokens (amount) {
+               manager.trustedBasket(async (err, basket) => {
+                   let tokenBasket = web3.eth.contract(BASKET_ABI).at(basket);
+                   tokenBasket.getTokens((err, tokenAddrs) => {
+                       rsv.decimals((err, decimals) => {
+                           let qAmount = amount * Math.pow(10, decimals);
+                           manager.toIssue(qAmount, (err, tokenAmounts) => {
+                               for (let i = 0; i < tokenAmounts.length; ++i) {
+                                   let addr = tokenAddrs[i]
+                                   let amt = tokenAmounts[i];
+                                   let contract = web3.eth.contract(ERC20_ABI).at(addr);
+                                   contract.approve(MANAGER_ADDR, amt, (err, txHash) => {
+                                       console.log("TxHash:",txHash);
+                                   });
+                               }
+                           });
+                       });
+                   });
+               });
+            }
+            
+            function mintRSV (amount) {
+                rsv.decimals((err, decimals) => {
+                   let qAmount = amount * Math.pow(10, decimals);
+                   manager.issue(qAmount, (err, txHash) => {
+                      console.log("TxHash:",txHash); 
+                   });
+                });
+            }
+            
+            function redeemRSV (amount) {
+                rsv.decimals((err, decimals) => {
+                   let qAmount = amount * Math.pow(10, decimals);
+                   manager.redeem(qAmount, (err, txHash) => {
+                       console.log("TxHash:",txHash);
+                   });
+                });
+            }
+            
+            window.addEventListener("load", async () => {
+               
+               if (!window.ethereum) {
+                   return alert("Please install Metamask to use this dApp.");
+               }
+               
+               window.web3 = new Web3(ethereum);
+               
+               try {
+                   await ethereum.enable();
+               } catch (e) {
+                   
+               }
+               
+               usdc = web3.eth.contract(ERC20_ABI).at(USDC_ADDR),
+                tusd = web3.eth.contract(ERC20_ABI).at(TUSD_ADDR),
+                pax = web3.eth.contract(ERC20_ABI).at(PAX_ADDR),
+                rsv = web3.eth.contract(ERC20_ABI).at(RSV_ADDR),
+                manager = web3.eth.contract(MANAGER_ABI).at(MANAGER_ADDR);
+
+                usdc.balanceOf(web3.eth.accounts[0], (err, balance) => {
+                   usdc.decimals((err2, decimals) => {
+                       $("#USDCbal").text((balance/Math.pow(10, decimals)).toFixed(6) + "000000000000");
+                   }) ;
+                });
+
+                tusd.balanceOf(web3.eth.accounts[0], (err, balance) => {
+                    tusd.decimals((err2, decimals) => {
+                       $("#TUSDbal").text((balance/Math.pow(10, decimals)).toFixed(18));
+                    });
+                });
+                
+                pax.balanceOf(web3.eth.accounts[0], (err, balance) => {
+                   pax.decimals((err2, decimals) => {
+                       $("#PAXbal").text((balance/Math.pow(10, decimals)).toFixed(18));
+                   }) ;
+                });
+                    
+               rsv.balanceOf(web3.eth.accounts[0], (err, balance) => {
+                   rsv.decimals((err2, decimals) => {
+                       $("#RSVbal").text((balance / Math.pow(10, decimals)).toFixed(18));
+                   });
+               });
+                
+            });
+            
+        </script>
+    </head>
+    
+    <body>
+        <div class="header-div">
+            <h1>Reserve Protocol</h1>
+            <h3>RSV Mint</h3>
+        </div>
+        <div class="center-div">
+            <div>
+            <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/3408.png" width="30px" height="30px">&nbsp;
+            <span id="USDCbal"></span>
+            <br>
+            <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/2563.png" width="30px" height="30px">&nbsp;
+            <span id="TUSDbal"></span>
+            <br>
+            <img src="https://s2.coinmarketcap.com/static/img/coins/64x64/3330.png" width="30px" height="30px">&nbsp;
+            <span id="PAXbal"></span>
+            <br><br>
+            <input id="mintField" placeholder="Amount">
+            <button style="width:100px" id="unlockBtn" onClick="unlockTokens($('#mintField').val())">Unlock</button>
+            <button style="width:100px" id="mintBtn" onClick="mintRSV($('#mintField').val())">Mint</button>
+            <hr>
+            <img src="https://assets.website-files.com/5cd7769d1cfc8a608eabfacd/5cd7769d1cfc8aa199abfbb8_logo.svg" width="30px" height="30px">
+            <span id="RSVbal"></span>
+            <br><br>
+            <input id="redeemField" placeholder="Amount">
+            <button style="width:200px" id="redeemBtn" onClick="redeemRSV($('#redeemField').val())">Redeem RSV</button>
+            </div>
+        </div>
+        <div class="footer-div">
+        </div>
+    </body>
+    
+</html>
